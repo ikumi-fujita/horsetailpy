@@ -4,7 +4,7 @@ from numba import jit
 
 @jit(nopython=True)
 def horsetail(
-    l: float = 14.0,
+    cell_length: float = 14.0,
     n_mt_oneside: int = 3,
     v: tuple[float, float, float, float] = (3.3, 3.3, 4.2, 3.7),
     f: tuple[float, float, float, float] = (0.001, 0.03, 0, 0),
@@ -12,9 +12,10 @@ def horsetail(
     eta: float = 1.0,
     F_push: float = 4.0,
     F_pull: float = 2.0,
-    dt: float = 1,
-    rs: float = 60,
-    min: float = 240,
+    dt: float = 1.0,
+    T_total: float = 240.0,
+    output_interval: int = 60,
+    seed: float | None = None,
 ) -> np.ndarray:
     """
     Horsetail Simulation
@@ -24,168 +25,171 @@ def horsetail(
 
     Parameters
     ----------
-    l: float
-        cell length [um]
+    cell_length: float
+        cell length [um].
     n_mt_oneside: int
-        number of MT on each side of the SPB
+        number of MT on each side of the SPB.
     v: tuple[float, float, float, float]
-        MT velocity [um/min]
-        v[1],v_plus(cyt); v[2],v_plus(ctx); v[3],v_minus(cyt); v[4],v_minus(ctx)
+        MT velocity [um/min].
+        v[1], v_plus(cyt); v[2], v_plus(ctx); v[3], v_minus(cyt); v[4], v_minus(ctx).
     f: tuple[float, float, float, float]
-        catastroph or rescue frequency [/s]
-        f[1],f_cat(cyt); f[2],f_cat(ctx); f[3],f_res(cyt); f[4],f_res(ctx)
+        Catastroph or rescue frequency [/s].
+        f[1], f_cat(cyt); f[2], f_cat(ctx); f[3], f_res(cyt); f[4], f_res(ctx).
     r: float
-        Stokes radius of the nucleus [um]
+        Stokes radius of the nucleus [um].
     eta: float
-        viscosity of cytosol [kg/m s]
+        viscosity of cytosol [kg/m s].
     F_push: float
-        Pushing force [pN]
+        Pushing force [pN].
     F_pull: float
-        Pulling force [pN]
+        Pulling force [pN].
     dt: float
-        one step of simultion [s]
-        output results at every 'rs' steps
-    min: float
-        duration of simulation [min]
+        Step of simultion [s].
+    T_total: float
+        Total time of simulation [min].
+    output_interval: int
+        Output results every this interval.
 
     Returns
     -------
     res: np.ndarray
     """
 
-    cortex = (-l / 2, l / 2)
-    init_position = 0
-    st = 60 * min / dt
+    if seed is not None:
+        np.random.seed(seed)
+
+    ctx = (-cell_length / 2, cell_length / 2)
+    x_0 = 0
+    n_steps = int(60 * T_total / dt)
     n_mt = n_mt_oneside * 2
-    microtubules = [i for i in range(n_mt)]
     sign = np.array([1, -1] * n_mt_oneside)
-    v_plus = np.array([v[0], v[1]]) / 60 * dt
-    v_minus = np.array([v[2], v[3]]) / 60 * dt
-    v_mode = np.array([v_plus[0], -v_minus[0], v_plus[1], -v_minus[1], 0])
+    dx = np.array(v) / 60 * dt
+    dx_in_mode = np.array([dx[0], -dx[2], dx[1], -dx[3], 0])
 
     f_cat = np.array([f[0], f[1]]) * dt
     f_res = np.array([f[2], f[3]]) * dt
 
     C_drag = 6.0 * np.pi * r * eta
     C_buckle = 25 * np.pi**2
-    push_length = (C_buckle / F_push) ** (1 / 2)
+    len_push = (C_buckle / F_push) ** (1 / 2)
 
-    position = init_position
-    mt_length = np.zeros(n_mt)
-    mt_tip = np.array([position] * n_mt)
-    mt_mode = np.zeros(n_mt).astype(np.int64)
+    x = x_0
+    length = np.zeros(n_mt).astype(np.float64)
+    plus_end = np.array([x] * n_mt)
+
+    ### MT modes ###
     # 0: Growing in the cytoplasm
     # 1: Shrinking in the cytoplasm
-    # 2: Growing along the cortex
-    # 3: Shrinking along the cortex and generating pulling force
-    # 4: Pushing the cortex
+    # 2: Growing along the ctx
+    # 3: Shrinking along the ctx and generating pulling force
+    # 4: Pushing the ctx
+    mode = np.zeros(n_mt).astype(np.int64)
 
-    ###### Initialization ######
-    result = np.zeros(shape=(int(st / rs + 1), n_mt + 1))
+    ### Initialization ###
+    res = np.zeros(shape=(int(n_steps / output_interval + 1), n_mt + 1))
 
-    result[0, 0] = position
-    result[0, 1:] = mt_tip
+    res[0, 0] = x
+    res[0, 1:] = plus_end
 
-    times = [i for i in range(int(st))]
-
-    ###### Run Simulation ######
-    for t in times:
-        ### Force Generation
-        Force = 0
-        for x in microtubules:
+    ### Run Simulation ###
+    for t in range(n_steps):
+        ## Force Generation
+        F = 0
+        for mt in range(n_mt):
             # Pulling force
-            if mt_mode[x] == 3:
-                Force = Force + sign[x] * F_pull
+            if mode[mt] == 3:
+                F += +sign[mt] * F_pull
             # Pushing force
-            if mt_mode[x] == 4:
-                Force = Force - sign[x] * F_push
+            if mode[mt] == 4:
+                F += -sign[mt] * F_push
 
-        ### SPB movement
-        # Change the length of each MT according to the mt_mode
-        mt_length += v_mode[mt_mode]
+        ## SPB movement
+        # Change the length of each MT according to the mode
+        length += dx_in_mode[mode]
 
         # Change the SPB position according to the Force
-        position = position + Force / C_drag * dt
-        if position < cortex[0]:
-            position = cortex[0]
-        elif position > cortex[1]:
-            position = cortex[0]
-        # Change the tip position of each MT
-        mt_tip = position + sign * mt_length
+        x = x + F / C_drag * dt
+        if x < ctx[0]:
+            x = ctx[0]
+        elif x > ctx[1]:
+            x = ctx[0]
 
-        for x in microtubules:
-            ### Mode change depending on the position
-            # Growing in the cytoplasm
-            if mt_mode[x] == 0:
-                if (mt_tip[x] <= cortex[0]) or (mt_tip[x] >= cortex[1]):
-                    if mt_length[x] < push_length:
-                        # changed to Pushing the cortex
-                        mt_mode[x] = 4
+        # Change the plue end position of each MT
+        plus_end = x + sign * length
+
+        ### Change the mode of MT depending on the current mode and plus end position
+        for mt in range(n_mt):
+            # Mode 0: Growing in the cytoplasm
+            if mode[mt] == 0:
+                if (plus_end[mt] <= ctx[0]) or (plus_end[mt] >= ctx[1]):
+                    if length[mt] < len_push:
+                        # changed to Pushing the ctx
+                        mode[mt] = 4
                     else:
-                        # changed to Growing along the cortex
-                        mt_mode[x] = 2
+                        # changed to Growing along the ctx
+                        mode[mt] = 2
 
-            # Shrinking in the cytoplasm
-            elif mt_mode[x] == 1:
-                if (mt_tip[x] <= cortex[0]) or (mt_tip[x] >= cortex[1]):
-                    # changed to Shrinking along the cortex
-                    mt_mode[x] = 3
+            # Mode 1: Shrinking in the cytoplasm
+            elif mode[mt] == 1:
+                if (plus_end[mt] <= ctx[0]) or (plus_end[mt] >= ctx[1]):
+                    # changed to Shrinking along the ctx
+                    mode[mt] = 3
 
-            # Growing along the cortex
-            elif mt_mode[x] == 2:
-                if mt_length[x] < push_length:
-                    # changed to Pushing the cortex
-                    mt_mode[x] = 4
-                if (mt_tip[x] > cortex[0]) and (mt_tip[x] < cortex[1]):
+            # Mode 2: Growing along the ctx
+            elif mode[mt] == 2:
+                if length[mt] < len_push:
+                    # changed to Pushing the ctx
+                    mode[mt] = 4
+                if (plus_end[mt] > ctx[0]) and (plus_end[mt] < ctx[1]):
                     # changed to Growing in the cytoplasm
-                    mt_mode[x] = 0
+                    mode[mt] = 0
 
-            # Shrinking along the cortex
-            elif mt_mode[x] == 3:
-                if (mt_tip[x] > cortex[0]) and (mt_tip[x] < cortex[1]):
+            # Mode 3: Shrinking along the ctx
+            elif mode[mt] == 3:
+                if (plus_end[mt] > ctx[0]) and (plus_end[mt] < ctx[1]):
                     # changed to Shrinking in the cytoplasm
-                    mt_mode[x] = 1
+                    mode[mt] = 1
 
-            # Pushing the cortex
-            elif mt_mode[x] == 4:
-                if (mt_tip[x] > cortex[0]) and (mt_tip[x] < cortex[1]):
+            # Mode 4: Pushing the ctx
+            elif mode[mt] == 4:
+                if (plus_end[mt] > ctx[0]) and (plus_end[mt] < ctx[1]):
                     # changed to Growing in the cytoplasm
-                    mt_mode[x] = 0
+                    mode[mt] = 0
 
-            ### catasrophe or rescue of each MT
-            # Growing in the cytoplasm
-            if mt_mode[x] == 0:
+            ### Catasrophe or Rescue of MT
+            # Mode 0: Growing in the cytoplasm
+            if mode[mt] == 0:
                 if np.random.uniform() < f_cat[0]:
                     # changed to Shrinking in the cytoplasm
-                    mt_mode[x] = 1
+                    mode[mt] = 1
 
-            # Shrinking in the cytoplasm
-            elif mt_mode[x] == 1:
-                if (mt_length[x] < 0.1) or (np.random.uniform() < f_res[0]):
+            # Mode 1: Shrinking in the cytoplasm
+            elif mode[mt] == 1:
+                if (length[mt] < 0.1) or (np.random.uniform() < f_res[0]):
                     # changed to Growing in the cytoplasm
-                    mt_mode[x] = 0
+                    mode[mt] = 0
 
-            # Growing along the cortex
-            elif mt_mode[x] == 2:
+            # Mode 2: Growing along the ctx
+            elif mode[mt] == 2:
                 if np.random.uniform() < f_cat[1]:
-                    # changed to Shrinking along the cortex
-                    mt_mode[x] = 3
+                    # changed to Shrinking along the ctx
+                    mode[mt] = 3
 
-            # Shrinking along the cortex
-            elif mt_mode[x] == 3:
-                if (mt_length[x] < 0.1) or (np.random.uniform() < f_res[1]):
-                    # changed to Growing along the cortex
-                    mt_mode[x] = 2
+            # Mode 3: Shrinking along the ctx
+            elif mode[mt] == 3:
+                if (length[mt] < 0.1) or (np.random.uniform() < f_res[1]):
+                    # changed to Growing along the ctx
+                    mode[mt] = 2
 
-            # Pushing the cortex
-            elif mt_mode[x] == 4:
+            # Mode 4: Pushing the ctx
+            elif mode[mt] == 4:
                 if np.random.uniform() < f_cat[1]:
-                    # changed to Shrinking along the cortex
-                    mt_mode[x] = 3
+                    # changed to Shrinking along the ctx
+                    mode[mt] = 3
 
-        ### Output results once in every 'rs' step
-        if t % rs == 0:
-            result[int(t / rs) + 1, 0] = position
-            result[int(t / rs) + 1, 1:] = mt_tip
+        ### Output the results every output_interval
+        if t % output_interval == 0:
+            res[t // output_interval + 1, 0] = x
+            res[t // output_interval + 1, 1:] = plus_end
 
-    return result
+    return res
