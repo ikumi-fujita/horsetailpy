@@ -62,7 +62,6 @@ def horsetail(
     x_0 = 0
     n_steps = int(60 * T_total / dt)
     n_mt = n_mt_oneside * 2
-    microtubules = [i for i in range(n_mt)]
     sign = np.array([1, -1] * n_mt_oneside)
     dx = np.array(v) / 60 * dt
     dx_in_mode = np.array([dx[0], -dx[2], dx[1], -dx[3], 0])
@@ -92,13 +91,11 @@ def horsetail(
     res[0, 0] = x
     res[0, 1:] = plus_end
 
-    steps = [i for i in range(n_steps)]
-
     ### Run Simulation ###
-    for t in steps:
+    for t in range(n_steps):
         ## Force Generation
         F = 0
-        for mt in microtubules:
+        for mt in range(n_mt):
             # Pulling force
             if mode[mt] == 3:
                 F += +sign[mt] * F_pull
@@ -121,7 +118,7 @@ def horsetail(
         plus_end = x + sign * length
 
         ### Change the mode of MT depending on the current mode and plus end position
-        for mt in microtubules:
+        for mt in range(n_mt):
             # Mode 0: Growing in the cytoplasm
             if mode[mt] == 0:
                 if (plus_end[mt] <= ctx[0]) or (plus_end[mt] >= ctx[1]):
