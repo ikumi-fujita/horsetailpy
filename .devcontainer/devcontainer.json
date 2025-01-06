@@ -1,0 +1,9 @@
+{
+    "name": "horsetailpy",
+    "dockerFile": "../Dockerfile",
+    "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+    ],
+    "forwardPorts": [8888]
+}
