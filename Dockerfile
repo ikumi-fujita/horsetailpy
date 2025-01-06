@@ -10,3 +10,5 @@ RUN poetry config virtualenvs.create false \
 
 RUN mkdir -p /work
 WORKDIR /work
+
+EXPOSE 8888
