@@ -10,11 +10,7 @@
             "extensions": [
                 "ms-python.python",
                 "ms-python.vscode-pylance",
-                "njpwerner.autodocstring",
                 "ms-toolsai.jupyter"
-            ],
-            "editor.rulers": [
-                120
             ]
         }
     }
