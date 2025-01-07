@@ -2,20 +2,16 @@
     "name": "horsetailpy",
     "dockerFile": "../Dockerfile",
     "workspaceFolder": "/work",
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/work,type=bind,consistency=cached"
+    ],
     "customizations": {
         "vscode": {
             "extensions": [
                 "ms-python.python",
                 "ms-python.vscode-pylance",
-                "njpwerner.autodocstring",
                 "ms-toolsai.jupyter"
-            ],
-            "editor.rulers": [
-                120
             ]
         }
-    },
-    "forwardPorts": [
-        8888
-    ]
+    }
 }
