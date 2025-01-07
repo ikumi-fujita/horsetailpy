@@ -2,6 +2,9 @@
     "name": "horsetailpy",
     "dockerFile": "../Dockerfile",
     "workspaceFolder": "/work",
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/work,type=bind,consistency=cached"
+    ],
     "customizations": {
         "vscode": {
             "extensions": [
@@ -14,8 +17,5 @@
                 120
             ]
         }
-    },
-    "forwardPorts": [
-        8888
-    ]
+    }
 }
