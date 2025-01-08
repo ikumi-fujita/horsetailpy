@@ -13,5 +13,6 @@
                 "ms-toolsai.jupyter"
             ]
         }
-    }
+    },
+    "postStartCommand": "echo 'horsetailpy container started'"
 }
