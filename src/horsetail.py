@@ -80,9 +80,9 @@ def horsetail(
     ### MT modes ###
     # 0: Growing in the cytoplasm
     # 1: Shrinking in the cytoplasm
-    # 2: Growing along the ctx
-    # 3: Shrinking along the ctx and generating pulling force
-    # 4: Pushing the ctx
+    # 2: Growing along the cortex
+    # 3: Shrinking along the cortex and generating pulling force
+    # 4: Pushing the cortex
     mode = np.zeros(n_mt).astype(np.int64)
 
     ### Initialization ###
@@ -123,34 +123,34 @@ def horsetail(
             if mode[mt] == 0:
                 if (plus_end[mt] <= ctx[0]) or (plus_end[mt] >= ctx[1]):
                     if length[mt] < len_push:
-                        # changed to Pushing the ctx
+                        # changed to Pushing the cortex
                         mode[mt] = 4
                     else:
-                        # changed to Growing along the ctx
+                        # changed to Growing along the cortex
                         mode[mt] = 2
 
             # Mode 1: Shrinking in the cytoplasm
             elif mode[mt] == 1:
                 if (plus_end[mt] <= ctx[0]) or (plus_end[mt] >= ctx[1]):
-                    # changed to Shrinking along the ctx
+                    # changed to Shrinking along the cortex
                     mode[mt] = 3
 
-            # Mode 2: Growing along the ctx
+            # Mode 2: Growing along the cortex
             elif mode[mt] == 2:
                 if length[mt] < len_push:
-                    # changed to Pushing the ctx
+                    # changed to Pushing the cortex
                     mode[mt] = 4
                 if (plus_end[mt] > ctx[0]) and (plus_end[mt] < ctx[1]):
                     # changed to Growing in the cytoplasm
                     mode[mt] = 0
 
-            # Mode 3: Shrinking along the ctx
+            # Mode 3: Shrinking along the cortex
             elif mode[mt] == 3:
                 if (plus_end[mt] > ctx[0]) and (plus_end[mt] < ctx[1]):
                     # changed to Shrinking in the cytoplasm
                     mode[mt] = 1
 
-            # Mode 4: Pushing the ctx
+            # Mode 4: Pushing the cortex
             elif mode[mt] == 4:
                 if (plus_end[mt] > ctx[0]) and (plus_end[mt] < ctx[1]):
                     # changed to Growing in the cytoplasm
@@ -169,22 +169,22 @@ def horsetail(
                     # changed to Growing in the cytoplasm
                     mode[mt] = 0
 
-            # Mode 2: Growing along the ctx
+            # Mode 2: Growing along the cortex
             elif mode[mt] == 2:
                 if np.random.uniform() < f_cat[1]:
-                    # changed to Shrinking along the ctx
+                    # changed to Shrinking along the cortex
                     mode[mt] = 3
 
-            # Mode 3: Shrinking along the ctx
+            # Mode 3: Shrinking along the cortex
             elif mode[mt] == 3:
                 if (length[mt] < 0.1) or (np.random.uniform() < f_res[1]):
-                    # changed to Growing along the ctx
+                    # changed to Growing along the cortex
                     mode[mt] = 2
 
-            # Mode 4: Pushing the ctx
+            # Mode 4: Pushing the cortex
             elif mode[mt] == 4:
                 if np.random.uniform() < f_cat[1]:
-                    # changed to Shrinking along the ctx
+                    # changed to Shrinking along the cortex
                     mode[mt] = 3
 
         ### Output the results every output_interval
