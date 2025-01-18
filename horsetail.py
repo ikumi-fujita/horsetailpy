@@ -1,6 +1,11 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 import numpy as np
 from numba import jit
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 @jit(nopython=True)
 def horsetail(
@@ -16,7 +21,7 @@ def horsetail(
     T_total: float = 240.0,
     output_interval: int = 60,
     seed: float | None = None,
-) -> np.ndarray:
+) -> NDArray:
     """
     Horsetail Simulation
     Python version, numba accelerated
@@ -52,7 +57,7 @@ def horsetail(
 
     Returns
     -------
-    res: np.ndarray
+    res: numpy.ndarray
     """
 
     if seed is not None:

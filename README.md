@@ -7,7 +7,7 @@ The original R version is [here](https://github.com/ikumi-fujita/horsetail).
     [Test run]
     100%|███████████████████████████████████████| 10000/10000 [00:02<00:00, 3345.16it/s]
     Number of simulations: 10000
-    Numper of cores: 8
+    Number of cores: 8
     Elapsed time: 3.47 s
     
     [Draw a figure]
